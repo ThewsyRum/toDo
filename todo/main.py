@@ -27,73 +27,103 @@ login_manager.login_view = 'login'
 def load_user(user_id):
     with SessionLocal() as session:
         return session.query(User).get(int(user_id))
-
+		
 
 @app.route('/')
 def register_uuid():
     unique_uuid: str = generate_uuid()
     with SessionLocal() as session:
-        result = session.execute(select(User)).scalars()
-        if unique_uuid not in [users.user_id for users in result]:
+        user = session.query(User).filter_by(user_id=unique_uuid).first()
+        if not user:
             new_user = User(user_id=unique_uuid)
             session.add(new_user)
             session.commit()
             login_user(new_user)
-
     return redirect(url_for('home', unique_uuid=unique_uuid))
-
 
 @app.route('/T<unique_uuid>')
 def home(unique_uuid):
     tasks: list = []
     with SessionLocal() as session:
-        result = session.execute(select(User)).scalars()
-        if unique_uuid not in [users.user_id for users in result]:
+        user = session.query(User).filter_by(user_id=unique_uuid).first()
+        if not user:
             new_user = User(user_id=unique_uuid)
             session.add(new_user)
             login_user(new_user)
             session.commit()
         else:
-            user = session.query(User).filter_by(user_id=unique_uuid).first()
             login_user(user)
-            for todo in user.todos:
-                tasks.append(todo)
-
+            tasks = user.todos
     return render_template('index.html', message=message, unique_uuid=unique_uuid, tasks=tasks)
-
 
 @app.route("/add/", methods=['GET', 'POST'])
 def add_task():
     if request.method == 'POST':
         task: str = request.form.get('task')
         unique_uuid: str = current_user.user_id
-        with SessionLocal() as session:
-            result = session.execute(select(User).where(User.id == current_user.id))
-            user = result.scalar()
-            user.add_todo(task=task)
+        current_user.add_todo(task=task)
         return redirect(url_for('home', unique_uuid=unique_uuid))
-
 
 @app.route("/completed", methods=['POST'])
 def task_complete():
     task_id: str = request.args.get('task_id')
     unique_uuid: str = current_user.user_id
-    with SessionLocal() as session:
-        result = session.execute(select(User).where(User.id == current_user.id))
-        user = result.scalar()
-        user.task_complete(task_id=task_id)
+    current_user.task_complete(task_id=task_id)
     return redirect(url_for('home', unique_uuid=unique_uuid))
-
 
 @app.route('/delete')
 def delete_task():
     task_id: str = request.args.get('task_id')
     unique_uuid: str = current_user.user_id
+    current_user.delete_task(task_id=task_id)
+    return redirect(url_for('home', unique_uuid=unique_uuid))
+def register_uuid():
+    unique_uuid: str = generate_uuid()
     with SessionLocal() as session:
-        result = session.execute(select(User).where(User.id == current_user.id))
-        user = result.scalar()
-        user.delete_task(task_id=task_id)
+        user = session.query(User).filter_by(user_id=unique_uuid).first()
+        if not user:
+            new_user = User(user_id=unique_uuid)
+            session.add(new_user)
+            session.commit()
+            login_user(new_user)
+    return redirect(url_for('home', unique_uuid=unique_uuid))
+
+@app.route('/T<unique_uuid>')
+def home(unique_uuid):
+    tasks: list = []
+    with SessionLocal() as session:
+        user = session.query(User).filter_by(user_id=unique_uuid).first()
+        if not user:
+            new_user = User(user_id=unique_uuid)
+            session.add(new_user)
+            login_user(new_user)
+            session.commit()
+        else:
+            login_user(user)
+            tasks = user.todos
+    return render_template('index.html', message=message, unique_uuid=unique_uuid, tasks=tasks)
+
+@app.route("/add/", methods=['GET', 'POST'])
+def add_task():
+    if request.method == 'POST':
+        task: str = request.form.get('task')
+        unique_uuid: str = current_user.user_id
+        current_user.add_todo(task=task)
         return redirect(url_for('home', unique_uuid=unique_uuid))
+
+@app.route("/completed", methods=['POST'])
+def task_complete():
+    task_id: str = request.args.get('task_id')
+    unique_uuid: str = current_user.user_id
+    current_user.task_complete(task_id=task_id)
+    return redirect(url_for('home', unique_uuid=unique_uuid))
+
+@app.route('/delete')
+def delete_task():
+    task_id: str = request.args.get('task_id')
+    unique_uuid: str = current_user.user_id
+    current_user.delete_task(task_id=task_id)
+    return redirect(url_for('home', unique_uuid=unique_uuid))
 
 
 if __name__ == '__main__':
