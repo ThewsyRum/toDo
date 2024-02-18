@@ -23,5 +23,5 @@ def test_generate_uuid():
     assert "-" not in generated_uuid
 
     # Check if two consecutive calls produce different UUIDs
-    new_generated_uuid = generate_uuid()
-    assert generated_uuid != new_generated_uuid
+
+    assert generated_uuid != generate_uuid()
